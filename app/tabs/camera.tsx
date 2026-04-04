@@ -4,12 +4,15 @@ import {
   SafeAreaView, Alert, Animated, Dimensions, Image,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { router } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
 import { Colors, BorderRadius } from '../../constants/theme';
 import { detectLitter, LitterResult } from '../../lib/gemini';
 import { calculatePoints } from '../../lib/points';
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+//for testing the after screen without eating my gemini API
+const DEV_SHOW_AFTER_ONLY = false;
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const TROPHY_IMG = require('../../assets/images/app-logo.png');
 const STAR_IMG   = require('../../assets/images/points.png');
@@ -17,6 +20,7 @@ const STAR_IMG   = require('../../assets/images/points.png');
 type FlowStep = 'before_camera' | 'before_result' | 'after_camera' | 'after_result';
 
 export default function CameraScreen() {
+  const navigation = useNavigation<any>();
   const [permission, requestPermission] = useCameraPermissions();
   const [step, setStep] = useState<FlowStep>('before_camera');
   const [loading, setLoading] = useState(false);
@@ -24,6 +28,27 @@ export default function CameraScreen() {
   const [afterResult, setAfterResult]   = useState<LitterResult | null>(null);
   const cameraRef = useRef<CameraView>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  //dev showing only the after screen
+  if (DEV_SHOW_AFTER_ONLY) {
+    const mockPoints = {
+      itemsCleaned: 12,
+      points: 240,
+    };
+
+    return (
+      <AfterResultScreen
+        points={{
+          itemsCleaned: 8,
+          points: 160,
+          bonus: 40,
+          bonusLabel: "Cleanup Streak Bonus",
+        }}
+        onReset={() => {}}
+        onLeaderboard={() => {}}
+      />
+    );
+  }
 
   useEffect(() => {
     Animated.loop(
@@ -42,7 +67,7 @@ export default function CameraScreen() {
         <Text style={styles.permissionEmoji}>📷</Text>
         <Text style={styles.permissionTitle}>Camera Access Needed</Text>
         <Text style={styles.permissionSubtitle}>
-          PureLeaf needs your camera to detect and count litter.
+          LitterLens needs your camera to detect and count litter.
         </Text>
         <TouchableOpacity style={styles.permissionBtn} onPress={requestPermission}>
           <Text style={styles.permissionBtnText}>Grant Permission</Text>
@@ -84,25 +109,17 @@ export default function CameraScreen() {
 
   return (
     <View style={styles.container}>
-      {/* ── Camera view ── */}
       {(step === 'before_camera' || step === 'after_camera') && (
         <>
           <CameraView ref={cameraRef} style={styles.camera} facing="back" />
-
-          {/* Semi-transparent green bottom bar overlaid on camera */}
           <View style={styles.bottomBar}>
             <View style={styles.detectionBadge}>
               <Text style={styles.sparkle}>✦</Text>
               <Text style={styles.detectionText}>
-                {loading
-                  ? 'Analyzing...'
-                  : step === 'before_camera'
-                  ? '0 items detected'
-                  : 'Tap to verify'}
+                {loading ? 'Analyzing...' : step === 'before_camera' ? '0 items detected' : 'Tap to verify'}
               </Text>
               <Text style={styles.sparkle}>✦</Text>
             </View>
-
             <Animated.View style={{ transform: [{ scale: loading ? 1 : pulseAnim }] }}>
               <TouchableOpacity
                 style={[styles.shutter, loading && styles.shutterDisabled]}
@@ -120,7 +137,6 @@ export default function CameraScreen() {
         </>
       )}
 
-      {/* ── Before result sheet ── */}
       {step === 'before_result' && beforeResult && (
         <BeforeResultSheet
           result={beforeResult}
@@ -129,36 +145,46 @@ export default function CameraScreen() {
         />
       )}
 
-      {/* ── After result screen ── */}
       {step === 'after_result' && afterResult && beforeResult && points && (
-        <AfterResultScreen
-          points={points}
-          onReset={resetFlow}
-        />
-      )}
+      <AfterResultScreen
+        points={points}
+        onReset={resetFlow}
+        onLeaderboard={() => navigation.navigate('Leaderboard')}
+      />
+    )}
     </View>
   );
 }
 
 // ── Before Result Sheet ──────────────────────────────────────────────────────
+// Floats above a semi-transparent overlay of the camera image
 function BeforeResultSheet({
   result, onSnap, onDiscard,
 }: { result: LitterResult; onSnap: () => void; onDiscard: () => void }) {
-  const slideAnim = useRef(new Animated.Value(400)).current;
+  const slideAnim = useRef(new Animated.Value(60)).current;
+  const fadeAnim  = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
-    Animated.spring(slideAnim, {
-      toValue: 0, useNativeDriver: true, tension: 55, friction: 11,
-    }).start();
+    Animated.parallel([
+      Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 55, friction: 11 }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }),
+    ]).start();
   }, []);
 
   return (
-    <View style={styles.container}>
-      {/* Blurred camera bg — green tint */}
-      <View style={styles.beforeBg} />
+    <View style={StyleSheet.absoluteFill}>
+      {/* Semi-transparent dark overlay (simulates blurred camera bg) */}
+      <Animated.View style={[styles.overlay, { opacity: fadeAnim }]} />
 
-      <Animated.View style={[styles.sheet, { transform: [{ translateY: slideAnim }] }]}>
-        {/* Count + subtitle */}
-        <Text style={styles.sheetCount}>{result.count} Items{'\n'}Detected!</Text>
+      {/* Floating card — NOT full width, has horizontal margins */}
+      <Animated.View
+        style={[
+          styles.floatingCard,
+          { transform: [{ translateY: slideAnim }], opacity: fadeAnim },
+        ]}
+      >
+        {/* Count */}
+        <Text style={styles.sheetCount}>{result.count} Items Detected!</Text>
         <Text style={styles.sheetSubtitle}>Get Cleaning!</Text>
 
         {/* Item list */}
@@ -177,7 +203,7 @@ function BeforeResultSheet({
           )}
         </View>
 
-        {/* CTA */}
+        {/* CTA — green color, centered */}
         <Text style={styles.sheetCta}>Ready to{'\n'}Show Your Work?</Text>
 
         <TouchableOpacity style={styles.snapBtn} onPress={onSnap} activeOpacity={0.85}>
@@ -193,10 +219,11 @@ function BeforeResultSheet({
 
 // ── After Result Screen ──────────────────────────────────────────────────────
 function AfterResultScreen({
-  points, onReset,
+    points, onReset, onLeaderboard,
 }: {
   points: ReturnType<typeof calculatePoints>;
   onReset: () => void;
+  onLeaderboard: () => void;
 }) {
   const scaleAnim   = useRef(new Animated.Value(0.4)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
@@ -210,43 +237,46 @@ function AfterResultScreen({
 
   return (
     <View style={styles.afterContainer}>
-      {/* Green top section */}
+      {/* Green top — rounded bottom corners, drop shadow onto white card */}
       <View style={styles.afterGreenTop}>
-        {/* Trophy — swap emoji for image when ready */}
-        <Image source={TROPHY_IMG} style={styles.trophyImage} resizeMode="contain" />
-        {/* <Animated.Text
-          style={[styles.trophyEmoji, { transform: [{ scale: scaleAnim }], opacity: opacityAnim }]}
-        >
-          🏆
-        </Animated.Text> */}
+        <Animated.View style={{ transform: [{ scale: scaleAnim }], opacity: opacityAnim }}>
+          <Image source={TROPHY_IMG} style={styles.trophyImage} resizeMode="contain" />
+        </Animated.View>
 
         <Text style={styles.greatJob}>Great Job!</Text>
         <Text style={styles.litterally}>
           You <Text style={styles.litterYellow}>litter</Text>ally rule
         </Text>
         <Text style={styles.cleanedLabel}>You cleaned up</Text>
-        <Text style={styles.cleanedCount}>{points.itemsCleaned}</Text>
-        <Text style={styles.cleanedWord}>items</Text>
+
+        {/* Big number inline with small "items" word */}
+        <View style={styles.cleanedRow}>
+          <Text style={styles.cleanedCount}>{points.itemsCleaned}</Text>
+          <Text style={styles.cleanedWord}>items</Text>
+        </View>
       </View>
 
-      {/* White bottom card*/}
-      <View style={styles.pointsCard}>
-        <Text style={styles.youEarned}>You earned</Text>
+      {/* White floating card — NOT full width, rounded top, side margins */}
+      <View style={styles.pointsCardWrapper}>
+        <View style={styles.pointsCard}>
+          <Text style={styles.youEarned}>You earned</Text>
+          <View style={styles.pointsRow}>
+            <Image source={STAR_IMG} style={styles.starImage} resizeMode="contain" />
+            <Text style={styles.pointsNumber}>{points.points} points</Text>
+          </View>
 
-        <View style={styles.pointsRow}>
-          {/* Swap for image: */}
-          <Image source={STAR_IMG} style={styles.starImage} />
-          {/* <Text style={styles.starEmoji}>⭐</Text> */}
-          <Text style={styles.pointsNumber}>{points.points} points</Text>
+          <TouchableOpacity
+            style={styles.leaderboardBtn}
+            onPress={onLeaderboard}   // ← was router.push(...)
+            activeOpacity={0.85}
+          >
+            <Text style={styles.leaderboardBtnText}>View Leaderboard</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.homeBtn} onPress={onReset} activeOpacity={0.85}>
+            <Text style={styles.homeBtnText}>Back to Home</Text>
+          </TouchableOpacity>
         </View>
-
-        <TouchableOpacity style={styles.leaderboardBtn} onPress={() => router.push('/tabs/leaderboard')} activeOpacity={0.85}>
-          <Text style={styles.leaderboardBtnText}>View Leaderboard</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.homeBtn} onPress={onReset} activeOpacity={0.85}>
-          <Text style={styles.homeBtnText}>Back to Home</Text>
-        </TouchableOpacity>
       </View>
     </View>
   );
@@ -257,40 +287,24 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
   camera: { flex: 1 },
 
-  // Semi-transparent bottom bar sitting over the camera
   bottomBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(34, 100, 34, 0.82)', // semi-transparent green
-    paddingTop: 18,
-    paddingBottom: 96,
-    alignItems: 'center',
-    gap: 16,
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    backgroundColor: 'rgba(34, 100, 34, 0.82)',
+    paddingTop: 18, paddingBottom: 96,
+    alignItems: 'center', gap: 16,
   },
   detectionBadge: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   sparkle: { color: Colors.accent, fontSize: 16 },
   detectionText: { color: '#fff', fontSize: 20, fontWeight: '800' },
-
   shutter: {
-    width: 74,
-    height: 74,
-    borderRadius: 37,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 5,
-    borderColor: 'rgba(255,255,255,0.5)',
+    width: 74, height: 74, borderRadius: 37,
+    backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
+    borderWidth: 5, borderColor: 'rgba(255,255,255,0.5)',
   },
   shutterDisabled: { opacity: 0.6 },
   shutterInner: {
     width: 58, height: 58, borderRadius: 29,
-    backgroundColor: '#fff',
-    borderWidth: 2,
-    borderColor: 'rgba(0,0,0,0.08)',
+    backgroundColor: '#fff', borderWidth: 2, borderColor: 'rgba(0,0,0,0.08)',
   },
 
   // Permission
@@ -310,20 +324,37 @@ const styles = StyleSheet.create({
   },
   permissionBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 
-  // Before result
-  beforeBg: { ...StyleSheet.absoluteFillObject, backgroundColor: Colors.primary },
-  sheet: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
+  // Before result — overlay + floating card
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  floatingCard: {
+    position: 'absolute',
+    // Vertically centered-ish, sits in lower portion of screen
+    bottom: 60,
+    left: 24,
+    right: 24,
     backgroundColor: '#fff',
-    borderTopLeftRadius: 36, borderTopRightRadius: 36,
-    paddingHorizontal: 28, paddingTop: 32, paddingBottom: 52,
+    borderRadius: 32,
+    paddingHorizontal: 28,
+    paddingTop: 28,
+    paddingBottom: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 24,
+    elevation: 20,
   },
   sheetCount: {
-    fontSize: 38, fontWeight: '900', color: Colors.primary,
-    lineHeight: 44, marginBottom: 4,
+    fontSize: 32, fontWeight: '900', color: Colors.primary,
+    textAlign: 'center', marginBottom: 2,
   },
-  sheetSubtitle: { fontSize: 16, color: Colors.textSecondary, marginBottom: 18 },
-  itemsList: { marginBottom: 22, gap: 8 },
+  sheetSubtitle: {
+    fontSize: 15, color: Colors.textSecondary,
+    textAlign: 'center', marginBottom: 16,
+  },
+  itemsList: { marginBottom: 20, gap: 8 },
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   itemDot: { color: Colors.primary, fontSize: 18, width: 16 },
   itemLabel: { flex: 1, fontSize: 15, color: Colors.text, textTransform: 'capitalize' },
@@ -333,61 +364,94 @@ const styles = StyleSheet.create({
   },
   itemConf: { fontSize: 11, color: Colors.primary, fontWeight: '600' },
   moreItems: { fontSize: 13, color: Colors.textMuted, fontStyle: 'italic' },
+  // Green color, centered
   sheetCta: {
-    fontSize: 32, fontWeight: '900', color: Colors.text,
-    lineHeight: 38, marginBottom: 24,
+    fontSize: 28, fontWeight: '900', color: Colors.primary,
+    textAlign: 'center', lineHeight: 34, marginBottom: 20,
   },
   snapBtn: {
     backgroundColor: Colors.accent, borderRadius: 999,
-    paddingVertical: 17, alignItems: 'center', marginBottom: 12,
+    paddingVertical: 17, alignItems: 'center', marginBottom: 10,
   },
   snapBtnText: { fontSize: 16, fontWeight: '800', color: '#1a1a1a' },
   discardBtn: {
-    borderWidth: 1.5, borderColor: '#ccc',
+    borderWidth: 1.5, borderColor: '#1C9849',
     borderRadius: 999, paddingVertical: 15, alignItems: 'center',
   },
   discardBtnText: { fontSize: 15, fontWeight: '600', color: Colors.text },
 
   // After result
-  afterContainer: { flex: 1, backgroundColor: Colors.primary },
+  afterContainer: { flex: 1, backgroundColor: '#F5F5F0' },
+
   afterGreenTop: {
-    flex: 1,
+    backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingBottom: 40,
+    paddingTop: 45,
+    paddingBottom: 60,
+    // Rounded bottom corners
+    borderBottomLeftRadius: 60,
+    borderBottomRightRadius: 60,
+    // Drop shadow onto the background below
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 20,
+    elevation: 16,
+    // Ensure shadow isn't clipped
+    zIndex: 1,
   },
-  trophyEmoji: { fontSize: 80, marginBottom: 12 },
-  trophyImage: { width: 90, height: 90, marginBottom: 12 }, // for when you swap to image
-  greatJob: { fontSize: 26, fontWeight: '900', color: '#fff', marginBottom: 2 },
-  litterally: { fontSize: 22, fontWeight: '700', color: '#fff', marginBottom: 12 },
+  trophyImage: { width: 150, height: 150, marginBottom: 14 },
+  greatJob: { fontSize: 45, fontWeight: '900', color: '#fff', marginBottom: 2 },
+  litterally: { fontSize: 45, fontWeight: '500', color: '#fff', marginBottom: 14 },
   litterYellow: { color: Colors.accent },
-  cleanedLabel: { fontSize: 16, color: 'rgba(255,255,255,0.8)', marginBottom: 0 },
-  cleanedCount: { fontSize: 52, fontWeight: '900', color: '#fff', lineHeight: 58 },
-  cleanedWord: { fontSize: 18, color: 'rgba(255,255,255,0.85)', marginBottom: 8 },
+  cleanedLabel: { fontSize: 25, color: 'rgba(255,255,255,0.8)', marginBottom: 4 },
 
+  // Big number inline with small "items"
+  cleanedRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
+  },
+  cleanedCount: { fontSize: 70, fontWeight: '900', color: '#fff', lineHeight: 70 },
+  cleanedWord: { fontSize: 28, color: 'rgba(255,255,255,0.85)', fontWeight: '500' },
+
+  // White card — floating with side margins, very rounded top
+  pointsCardWrapper: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 0,
+    paddingBottom: 40,
+    zIndex: 1,
+    marginTop: -40
+  },
   pointsCard: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 40,
-    borderTopRightRadius: 40,
+    backgroundColor: '#F0F0F0',
+    borderTopLeftRadius: 80,
+    borderTopRightRadius: 80,
     paddingHorizontal: 28,
-    paddingTop: 32,
-    paddingBottom: 48,
+    paddingTop: 28,
+    paddingBottom: 70,
     alignItems: 'center',
-    gap: 14,
+    gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 4,
   },
   youEarned: { fontSize: 15, color: Colors.textSecondary },
   pointsRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
-  starEmoji: { fontSize: 34 },
-  starImage: { width: 34, height: 34 }, // for when you swap to image
-  pointsNumber: { fontSize: 42, fontWeight: '900', color: Colors.text },
+  starImage: { width: 36, height: 36 },
+  pointsNumber: { fontSize: 44, fontWeight: '900', color: Colors.text },
   leaderboardBtn: {
     backgroundColor: Colors.primary, borderRadius: 999,
     paddingVertical: 15, alignItems: 'center', width: '100%',
   },
-  leaderboardBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  leaderboardBtnText: { color: '#fff', fontSize: 20, fontWeight: '400' },
   homeBtn: {
-    borderWidth: 1.5, borderColor: '#ccc',
+    borderWidth: 1.5, borderColor: '#1C9849',
     borderRadius: 999, paddingVertical: 14, alignItems: 'center', width: '100%',
   },
-  homeBtnText: { fontSize: 15, fontWeight: '600', color: Colors.text },
+  homeBtnText: { fontSize: 20, fontWeight: '400', color: Colors.text },
 });

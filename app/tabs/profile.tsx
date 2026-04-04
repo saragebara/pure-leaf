@@ -5,14 +5,7 @@ import {
 } from 'react-native';
 import { Colors, BorderRadius } from '../../constants/theme';
 
-// const AVATAR_IMG        = require('../../assets/images/___.png');
-const SETTINGS_ICON     = require('../../assets/images/settings.png');
-const ACHIEVEMENT_ICONS = {
-  firstCleanup:  require('../../assets/images/user-achievement1.png'),
-  streakMaster:  require('../../assets/images/user-achievement2.png'),
-  pointPro:      require('../../assets/images/user-achievement3.png'),
-  litterKing:    require('../../assets/images/user-achievement3.png'),
-};
+const PFP_6 = require('../../assets/images/pfp6.png');
 
 const MOCK_PROFILE = {
   username: 'LeafLover',
@@ -21,11 +14,26 @@ const MOCK_PROFILE = {
   streak: 12,
 };
 
+// Three achievements matching Figma layout — images used
 const ACHIEVEMENTS = [
-  { title: 'First Cleanup', desc: 'Cleaned 10 items', unlocked: true,  emoji: '🌱' },
-  { title: 'Streak Master', desc: '7 days in a row',  unlocked: true,  emoji: '🔥' },
-  { title: 'Point Pro',     desc: 'Earn 1000 pts',    unlocked: false, emoji: '⭐' },
-  { title: 'Litter King',   desc: 'Clean 500 items',  unlocked: false, emoji: '👑' },
+  {
+    title: 'First Cleanup',
+    desc: 'Cleaned 10 items',
+    unlocked: true,
+    image: require('../../assets/images/user-achievement1.png'),
+  },
+  {
+    title: 'Streak Master',
+    desc: '7 days in a row',
+    unlocked: true,
+    image: require('../../assets/images/user-achievement2.png'),
+  },
+  {
+    title: 'Point Pro',
+    desc: 'Earn 3,000 pts',
+    unlocked: false,
+    image: require('../../assets/images/user-achievement3.png'),
+  },
 ];
 
 const ACTIVITY = [
@@ -40,53 +48,63 @@ export default function ProfileScreen() {
       {/* Green header */}
       <View style={styles.header}>
         <SafeAreaView />
-
-        {/* Settings button top-right 
-        This looks uggo i might take it out*/}
-        <TouchableOpacity style={styles.settingsBtn}>
-          {/* <Image source={SETTINGS_ICON} style={styles.settingsIcon} /> */}
-          {/* <View style={styles.settingsCircle} /> */}
-        </TouchableOpacity>
-
-        {/* Avatar */}
         <View style={styles.avatarRing}>
-          <View style={styles.avatarCircle}>
-            {/* <Image source={AVATAR_IMG} style={styles.avatarImg} /> */}
-          </View>
+          <Image
+            source={PFP_6}
+            style={styles.avatarImage}
+            resizeMode="cover"
+          />
         </View>
         <Text style={styles.username}>{MOCK_PROFILE.username}</Text>
       </View>
 
-      {/* Stats card — overlaps green header */}
+      {/* Stats card overlaps header */}
       <View style={styles.statsCard}>
         <View style={styles.statItem}>
-          <Text style={styles.statEmoji}>⭐</Text>
+          <Image
+            source={require('../../assets/images/points.png')}
+            style={styles.statIcon}
+            resizeMode="contain"
+          />
           <Text style={styles.statValue}>{MOCK_PROFILE.points.toLocaleString()}</Text>
           <Text style={styles.statLabel}>Points</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
-          <Text style={styles.statEmoji}>🗑️</Text>
+          <Image
+            source={require('../../assets/images/user-trash.png')}
+            style={styles.statIcon}
+            resizeMode="contain"
+          />
           <Text style={styles.statValue}>{MOCK_PROFILE.itemsCleaned}</Text>
           <Text style={styles.statLabel}>Items Cleaned</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
-          <Text style={styles.statEmoji}>🔥</Text>
+          <Image
+            source={require('../../assets/images/user-streak.png')}
+            style={styles.statIcon}
+            resizeMode="contain"
+          />
           <Text style={styles.statValue}>{MOCK_PROFILE.streak}</Text>
           <Text style={styles.statLabel}>Day Streak</Text>
         </View>
       </View>
 
       <View style={styles.content}>
-        {/* Achievements */}
+        {/* Achievements — 3 cards in a row */}
         <Text style={styles.sectionTitle}>Achievements</Text>
-        <View style={styles.achievementsGrid}>
+        <View style={styles.achievementsRow}>
           {ACHIEVEMENTS.map((a, i) => (
-            <View key={i} style={[styles.achievementCard, !a.unlocked && styles.achievementLocked]}>
-              <Text style={[styles.achievementEmoji, !a.unlocked && { opacity: 0.35 }]}>
-                {a.emoji}
-              </Text>
+            <View
+              key={i}
+              style={[styles.achievementCard, !a.unlocked && styles.achievementLocked]}
+            >
+              <Image
+                source={a.image}
+                style={[styles.achievementImage, !a.unlocked && { opacity: 0.35 }]}
+                resizeMode="contain"
+              />
               <Text style={[styles.achievementTitle, !a.unlocked && styles.lockedText]}>
                 {a.title}
               </Text>
@@ -128,15 +146,6 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
   },
-  settingsBtn: {
-    position: 'absolute', top: 16, right: 20,
-  },
-  settingsCircle: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-  },
-  settingsIcon: { width: 36, height: 36 }, // for image swap
-
   avatarRing: {
     marginTop: 20,
     width: 100, height: 100, borderRadius: 50,
@@ -145,19 +154,16 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     backgroundColor: 'rgba(255,255,255,0.2)',
   },
-  avatarCircle: {
-    width: 86, height: 86, borderRadius: 43,
-    backgroundColor: 'rgba(255,255,255,0.35)',
-    overflow: 'hidden',
+  avatarImage: {
+    width: 86,
+    height: 86,
+    borderRadius: 43,
   },
-  avatarImg: { width: 86, height: 86 }, // for image swap
-
   username: { fontSize: 26, fontWeight: '900', color: '#fff', letterSpacing: 0.2 },
 
-  // Stats card overlaps header
   statsCard: {
     flexDirection: 'row',
-    backgroundColor: '#E8F5E9',
+    backgroundColor: '#CADEA2',
     marginHorizontal: 20,
     marginTop: -44,
     borderRadius: 28,
@@ -169,27 +175,31 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   statItem: { flex: 1, alignItems: 'center', gap: 4 },
-  statEmoji: { fontSize: 24 },
+  statIcon: { width: 26, height: 26 },
   statValue: { fontSize: 22, fontWeight: '900', color: Colors.text },
   statLabel: { fontSize: 11, color: Colors.textSecondary, fontWeight: '500', textAlign: 'center' },
-  statDivider: { width: 1, backgroundColor: '#C8E6C9', marginVertical: 4 },
+  statDivider: { width: 1, backgroundColor: 'rgb(255, 255, 255)', marginVertical: 4 },
 
   content: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 40, gap: 14 },
   sectionTitle: { fontSize: 20, fontWeight: '800', color: Colors.text },
 
-  achievementsGrid: {
-    flexDirection: 'row', flexWrap: 'wrap', gap: 12,
+  // Three achievements in a single row
+  achievementsRow: {
+    flexDirection: 'row',
+    gap: 10,
   },
   achievementCard: {
-    width: '47%',
+    flex: 1,
     backgroundColor: Colors.white,
     borderRadius: 20,
-    padding: 16, gap: 6,
+    padding: 12,
+    alignItems: 'center',
+    gap: 6,
   },
   achievementLocked: { backgroundColor: '#F0F0F0', opacity: 0.65 },
-  achievementEmoji: { fontSize: 28 },
-  achievementTitle: { fontSize: 13, fontWeight: '700', color: Colors.text },
-  achievementDesc: { fontSize: 12, color: Colors.textSecondary },
+  achievementImage: { width: 44, height: 44 },
+  achievementTitle: { fontSize: 12, fontWeight: '700', color: Colors.text, textAlign: 'center' },
+  achievementDesc: { fontSize: 11, color: Colors.textSecondary, textAlign: 'center' },
   lockedText: { color: Colors.textMuted },
 
   activityList: { gap: 10 },
