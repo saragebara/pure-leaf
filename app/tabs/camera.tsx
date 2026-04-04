@@ -375,7 +375,7 @@ const styles = StyleSheet.create({
   },
   snapBtnText: { fontSize: 16, fontWeight: '800', color: '#1a1a1a' },
   discardBtn: {
-    borderWidth: 1.5, borderColor: '#1C9849',
+    borderWidth: 1.5, borderColor: '#1C9849zx',
     borderRadius: 999, paddingVertical: 15, alignItems: 'center',
   },
   discardBtnText: { fontSize: 15, fontWeight: '600', color: Colors.text },
