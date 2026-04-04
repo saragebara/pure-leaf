@@ -1,5 +1,5 @@
 ## Demo
-<iframe width="560" height="315" src="https://www.youtube.com/embed/Es1p-tzcCZs?si=DtiMoBddkK5Eyho_" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+https://www.youtube.com/watch?v=Es1p-tzcCZs
 
 ## Inspiration 🌱
 Litter is a problem that everyone notices, and yet few people feel motivated to act on. You might walk past some garbage outdoors and think, "someone else will deal with it". PureLeaf changes this psychology by making cleanup feel rewarding and competitive.
