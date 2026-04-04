@@ -5,8 +5,10 @@ import {
 } from 'react-native';
 import { Colors, BorderRadius } from '../../constants/theme';
 
+//profile picture (chiikawa hearts teehehee)
 const PFP_6 = require('../../assets/images/pfp6.png');
 
+//hardcoded user profile data
 const MOCK_PROFILE = {
   username: 'LeafLover',
   points: 2400,
@@ -14,7 +16,10 @@ const MOCK_PROFILE = {
   streak: 12,
 };
 
-// Three achievements matching Figma layout — images used
+//three achievement cards
+//added the actual badge illustration for them
+//its kind of ugly so maybe fix this in the future
+//"unlocked: false" dims the card and image so it looks grayed out
 const ACHIEVEMENTS = [
   {
     title: 'First Cleanup',
@@ -36,6 +41,7 @@ const ACHIEVEMENTS = [
   },
 ];
 
+//hardcoded cleanup history
 const ACTIVITY = [
   { points: 40, desc: 'Cleaned up 4 items', when: 'Today' },
   { points: 80, desc: 'Cleaned up 8 items', when: 'Yesterday' },
@@ -48,7 +54,8 @@ export default function ProfileScreen() {
       {/* Green header */}
       <View style={styles.header}>
         <SafeAreaView />
-        <View style={styles.avatarRing}>
+        <View style={styles.avatarRing}> 
+          {/* circular pfp with ring around it */}
           <Image
             source={PFP_6}
             style={styles.avatarImage}
@@ -58,9 +65,10 @@ export default function ProfileScreen() {
         <Text style={styles.username}>{MOCK_PROFILE.username}</Text>
       </View>
 
-      {/* Stats card overlaps header */}
+      {/* stats card overlaps the green header with negative marginTop  */}
       <View style={styles.statsCard}>
         <View style={styles.statItem}>
+          {/* points */}
           <Image
             source={require('../../assets/images/points.png')}
             style={styles.statIcon}
@@ -71,6 +79,7 @@ export default function ProfileScreen() {
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
+          {/* items cleaned */}
           <Image
             source={require('../../assets/images/user-trash.png')}
             style={styles.statIcon}
@@ -81,6 +90,7 @@ export default function ProfileScreen() {
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
+          {/* streak */}
           <Image
             source={require('../../assets/images/user-streak.png')}
             style={styles.statIcon}
@@ -92,7 +102,7 @@ export default function ProfileScreen() {
       </View>
 
       <View style={styles.content}>
-        {/* Achievements — 3 cards in a row */}
+        {/* achievements */}
         <Text style={styles.sectionTitle}>Achievements</Text>
         <View style={styles.achievementsRow}>
           {ACHIEVEMENTS.map((a, i) => (
@@ -100,6 +110,7 @@ export default function ProfileScreen() {
               key={i}
               style={[styles.achievementCard, !a.unlocked && styles.achievementLocked]}
             >
+              {/* badge image. if not unlocked then dim */}
               <Image
                 source={a.image}
                 style={[styles.achievementImage, !a.unlocked && { opacity: 0.35 }]}
@@ -115,18 +126,21 @@ export default function ProfileScreen() {
           ))}
         </View>
 
-        {/* Recent Activity */}
+        {/* recent activtiy */}
         <Text style={styles.sectionTitle}>Recent Activity</Text>
         <View style={styles.activityList}>
           {ACTIVITY.map((a, i) => (
             <View key={i} style={styles.activityRow}>
+              {/* green checkmark on the left */}
               <View style={styles.activityCheck}>
                 <Text style={styles.checkmark}>✓</Text>
               </View>
+              {/* text, info/points/desc */}
               <View style={styles.activityInfo}>
                 <Text style={styles.activityPoints}>+{a.points} points</Text>
                 <Text style={styles.activityDesc}>{a.desc}</Text>
               </View>
+              {/* date completed */}
               <Text style={styles.activityWhen}>{a.when}</Text>
             </View>
           ))}
@@ -139,6 +153,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F5F5F0' },
 
+  //green banner at the top
   header: {
     backgroundColor: Colors.primary,
     paddingBottom: 72,
@@ -146,6 +161,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
   },
+  //white ring around pfp
   avatarRing: {
     marginTop: 20,
     width: 100, height: 100, borderRadius: 50,
@@ -154,18 +170,19 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     backgroundColor: 'rgba(255,255,255,0.2)',
   },
-  avatarImage: {
+  avatarImage: { //pfp
     width: 86,
     height: 86,
     borderRadius: 43,
   },
   username: { fontSize: 26, fontWeight: '900', color: '#fff', letterSpacing: 0.2 },
 
+  //light green card 
   statsCard: {
     flexDirection: 'row',
     backgroundColor: '#CADEA2',
     marginHorizontal: 20,
-    marginTop: -44,
+    marginTop: -44, //floats above Yay
     borderRadius: 28,
     paddingVertical: 20, paddingHorizontal: 12,
     shadowColor: '#000',
@@ -178,12 +195,12 @@ const styles = StyleSheet.create({
   statIcon: { width: 26, height: 26 },
   statValue: { fontSize: 22, fontWeight: '900', color: Colors.text },
   statLabel: { fontSize: 11, color: Colors.textSecondary, fontWeight: '500', textAlign: 'center' },
-  statDivider: { width: 1, backgroundColor: 'rgb(255, 255, 255)', marginVertical: 4 },
+  statDivider: { width: 1, backgroundColor: 'rgb(255, 255, 255)', marginVertical: 4 }, //white divider lines
 
   content: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 40, gap: 14 },
   sectionTitle: { fontSize: 20, fontWeight: '800', color: Colors.text },
 
-  // Three achievements in a single row
+  //achievements
   achievementsRow: {
     flexDirection: 'row',
     gap: 10,
@@ -196,18 +213,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
+  //gray and reduced opacity for locked achievements
   achievementLocked: { backgroundColor: '#F0F0F0', opacity: 0.65 },
   achievementImage: { width: 44, height: 44 },
   achievementTitle: { fontSize: 12, fontWeight: '700', color: Colors.text, textAlign: 'center' },
   achievementDesc: { fontSize: 11, color: Colors.textSecondary, textAlign: 'center' },
   lockedText: { color: Colors.textMuted },
 
+  //rows for activity feed
   activityList: { gap: 10 },
   activityRow: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: Colors.white,
     borderRadius: 16, padding: 14, gap: 12,
   },
+  //checkmarks
   activityCheck: {
     width: 34, height: 34, borderRadius: 17,
     backgroundColor: Colors.primaryPale,

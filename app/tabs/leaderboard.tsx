@@ -5,7 +5,9 @@ import {
 } from 'react-native';
 import { Colors, BorderRadius } from '../../constants/theme';
 
+//cute leaf icon
 const LEAF_ICON = require('../../assets/images/leaf.png');
+//pfps
 const PFP_1 = require('../../assets/images/pfp1.png');
 const PFP_2 = require('../../assets/images/pfp2.png');
 const PFP_3 = require('../../assets/images/pfp3.png');
@@ -13,6 +15,7 @@ const PFP_4 = require('../../assets/images/pfp4.png');
 const PFP_5 = require('../../assets/images/pfp5.png');
 const PFP_6 = require('../../assets/images/pfp6.png');
 
+//hardcoded leaderboard users (top 5)
 const MOCK_USERS = [
   { rank: 1, username: 'CoolCleaner',   points: 350, isYou: false, avatar: PFP_1 },
   { rank: 2, username: 'EcoWarrior',    points: 300, isYou: false, avatar: PFP_2 },
@@ -25,12 +28,15 @@ const MOCK_USERS = [
 ];
 
 
-
+//time periods for leaderboard
 const PERIODS = ['This Week', 'This Month', 'All Time'];
 
+//colored circle showing rank numbers
+//top 3 get gold/silver/bronze, everyone else gets a plain gray circle
 function RankBadge({ rank }: { rank: number }) {
   const bgMap: Record<number, string> = { 1: '#F5C518', 2: '#C0C0C0', 3: '#CD7F32' };
   const bg = bgMap[rank] ?? '#EEEEEE';
+  //if top 3 then make the text color white so it actually shows up
   const textColor = rank <= 3 ? '#fff' : Colors.textSecondary;
   return (
     <View style={[styles.rankBadge, { backgroundColor: bg }]}>
@@ -39,6 +45,7 @@ function RankBadge({ rank }: { rank: number }) {
   );
 }
 
+//circular avatar 
 function Avatar({source, size = 40,}: {
   source: any; size?: number;}) {
   return (
@@ -54,6 +61,7 @@ function Avatar({source, size = 40,}: {
   );
 }
 
+//background tint for top 3 + white for everyone else
 function rowBg(rank: number) {
   if (rank === 1) return '#FFFBEA';
   if (rank === 2) return '#F8F8F8';
@@ -62,14 +70,16 @@ function rowBg(rank: number) {
 }
 
 export default function LeaderboardScreen() {
+  //tracks which time period tab is selected. initially set to week
   const [activePeriod, setActivePeriod] = useState('This Week');
-  const you    = MOCK_USERS.find(u => u.isYou)!;
+  //splitting  list to render "you" separately
+  const you = MOCK_USERS.find(u => u.isYou)!;
   const others = MOCK_USERS.filter(u => !u.isYou);
 
   return (
     <SafeAreaView style={styles.container}>
       <Text style={styles.title}>Leaderboard</Text>
-
+      {/* select time period */}
       <View style={styles.periodWrapper}>
         <View style={styles.periodRow}>
           {PERIODS.map(p => {
@@ -81,6 +91,7 @@ export default function LeaderboardScreen() {
                 onPress={() => setActivePeriod(p)}
                 activeOpacity={0.7}
               >
+                {/* cutie patootie leaf icon absolute position based on period */}
                 {active && (
                   <Image source={LEAF_ICON} style={styles.tabLeaf} resizeMode="contain" />
                 )}
@@ -92,6 +103,7 @@ export default function LeaderboardScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+        {/* main leaderboard view (everyone except the main user) */}
         {others.map(user => (
           <View key={user.rank} style={[styles.row, { backgroundColor: rowBg(user.rank) }]}>
             <RankBadge rank={user.rank} />
@@ -103,6 +115,7 @@ export default function LeaderboardScreen() {
           </View>
         ))}
 
+        {/* "your rank" card */}
         <View style={styles.youCardWrapper}>
           <Image source={LEAF_ICON} style={styles.youCardLeafOverflow} resizeMode="contain" />
           <View style={styles.youCard}>
@@ -144,7 +157,7 @@ const styles = StyleSheet.create({
   periodTab: {
     flex: 1, paddingVertical: 9,
     borderRadius: 999, alignItems: 'center',
-    overflow: 'visible',
+    overflow: 'visible', //overflow visible so the leaf icon can stick out above the button
   },
   periodTabActive: { backgroundColor: Colors.primary },
   periodText: { fontSize: 13, fontWeight: '600', color: Colors.textSecondary },
@@ -157,6 +170,7 @@ const styles = StyleSheet.create({
 
   scroll: { paddingHorizontal: 20, paddingBottom: 48, gap: 8 },
 
+  //leaderboard rows
   row: {
     flexDirection: 'row', alignItems: 'center',
     borderRadius: 16, paddingVertical: 12, paddingHorizontal: 14, gap: 12,

@@ -12,22 +12,32 @@ import { calculatePoints } from '../../lib/points';
 //for testing the after screen without eating my gemini API
 const DEV_SHOW_AFTER_ONLY = false;
 
+//for green card sizing
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const TROPHY_IMG = require('../../assets/images/app-logo.png');
 const STAR_IMG   = require('../../assets/images/points.png');
 
+//the main flow has 4 steps:
+//before_camera  - user points camera at litter
+//before_result - gemini gets a count, show the sheet
+//after_camera - user points camera at the cleaned area
+//after_result - show how many items cleaned + points earned
 type FlowStep = 'before_camera' | 'before_result' | 'after_camera' | 'after_result';
 
 export default function CameraScreen() {
   const navigation = useNavigation<any>();
+  //expo-camera hook for app permission request
   const [permission, requestPermission] = useCameraPermissions();
+  //tracks which screen/step in the cleanup flow we're on, initially on before stage
   const [step, setStep] = useState<FlowStep>('before_camera');
+  //true while waiting for gemini API
   const [loading, setLoading] = useState(false);
+  //storing both scan results to diff them at the end
   const [beforeResult, setBeforeResult] = useState<LitterResult | null>(null);
   const [afterResult, setAfterResult]   = useState<LitterResult | null>(null);
-  const cameraRef = useRef<CameraView>(null);
-  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const cameraRef = useRef<CameraView>(null); 
+  const pulseAnim = useRef(new Animated.Value(1)).current; //pulse animation for shutter
 
   //dev showing only the after screen
   if (DEV_SHOW_AFTER_ONLY) {
@@ -35,7 +45,7 @@ export default function CameraScreen() {
       itemsCleaned: 12,
       points: 240,
     };
-
+    //mockup for testing
     return (
       <AfterResultScreen
         points={{
@@ -50,6 +60,7 @@ export default function CameraScreen() {
     );
   }
 
+  //starting the shutter button pulse loop once on mount
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
@@ -59,8 +70,10 @@ export default function CameraScreen() {
     ).start();
   }, []);
 
+  //permission still loading
   if (!permission) return <View style={styles.container} />;
 
+  //permission denied
   if (!permission.granted) {
     return (
       <SafeAreaView style={styles.permissionContainer}>
@@ -76,10 +89,12 @@ export default function CameraScreen() {
     );
   }
 
+  //core function that captures a frame and sends it to gemini
   async function takePicture() {
     if (!cameraRef.current || loading) return;
     setLoading(true);
     try {
+      //base64 encoding for image in order to pass it into JSON request to gemini
       const photo = await cameraRef.current.takePictureAsync({ quality: 0.6, base64: true });
       if (!photo?.base64) throw new Error('No image data');
       const result = await detectLitter(photo.base64);
@@ -97,12 +112,14 @@ export default function CameraScreen() {
     }
   }
 
+  //wipe states
   function resetFlow() {
     setStep('before_camera');
     setBeforeResult(null);
     setAfterResult(null);
   }
 
+  //calculate points after getting both scans, diff amount of litter vs amount cleaned up
   const points = beforeResult && afterResult
     ? calculatePoints(beforeResult.count, afterResult.count)
     : null;
@@ -112,6 +129,7 @@ export default function CameraScreen() {
       {(step === 'before_camera' || step === 'after_camera') && (
         <>
           <CameraView ref={cameraRef} style={styles.camera} facing="back" />
+          {/* semi transparent green bar at the bottom that stores shutter and text */}
           <View style={styles.bottomBar}>
             <View style={styles.detectionBadge}>
               <Text style={styles.sparkle}>✦</Text>
@@ -121,6 +139,7 @@ export default function CameraScreen() {
               <Text style={styles.sparkle}>✦</Text>
             </View>
             <Animated.View style={{ transform: [{ scale: loading ? 1 : pulseAnim }] }}>
+              {/* loading */}
               <TouchableOpacity
                 style={[styles.shutter, loading && styles.shutterDisabled]}
                 onPress={takePicture}
@@ -136,7 +155,7 @@ export default function CameraScreen() {
           </View>
         </>
       )}
-
+      {/* what gemini found */}
       {step === 'before_result' && beforeResult && (
         <BeforeResultSheet
           result={beforeResult}
@@ -144,7 +163,7 @@ export default function CameraScreen() {
           onDiscard={resetFlow}
         />
       )}
-
+      {/* result after cleanup */}
       {step === 'after_result' && afterResult && beforeResult && points && (
       <AfterResultScreen
         points={points}
@@ -156,12 +175,13 @@ export default function CameraScreen() {
   );
 }
 
-// ── Before Result Sheet ──────────────────────────────────────────────────────
-// Floats above a semi-transparent overlay of the camera image
+// == Before Result Sheet =====================================================
 function BeforeResultSheet({
   result, onSnap, onDiscard,
 }: { result: LitterResult; onSnap: () => void; onDiscard: () => void }) {
+  //starts offscreen
   const slideAnim = useRef(new Animated.Value(60)).current;
+  //fades in
   const fadeAnim  = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -173,21 +193,21 @@ function BeforeResultSheet({
 
   return (
     <View style={StyleSheet.absoluteFill}>
-      {/* Semi-transparent dark overlay (simulates blurred camera bg) */}
+      {/* this did not work */}
       <Animated.View style={[styles.overlay, { opacity: fadeAnim }]} />
 
-      {/* Floating card — NOT full width, has horizontal margins */}
+      {/* main card */}
       <Animated.View
         style={[
           styles.floatingCard,
           { transform: [{ translateY: slideAnim }], opacity: fadeAnim },
         ]}
       >
-        {/* Count */}
+        {/* count */}
         <Text style={styles.sheetCount}>{result.count} Items Detected!</Text>
         <Text style={styles.sheetSubtitle}>Get Cleaning!</Text>
 
-        {/* Item list */}
+        {/* item list + info */}
         <View style={styles.itemsList}>
           {result.items.slice(0, 5).map((item, i) => (
             <View key={i} style={styles.itemRow}>
@@ -198,12 +218,12 @@ function BeforeResultSheet({
               </View>
             </View>
           ))}
-          {result.items.length > 5 && (
+          {result.items.length > 5 && ( //if there's more than 5 don't list them out
             <Text style={styles.moreItems}>+{result.items.length - 5} more items</Text>
           )}
         </View>
 
-        {/* CTA — green color, centered */}
+        {/* prompts user after before pic */}
         <Text style={styles.sheetCta}>Ready to{'\n'}Show Your Work?</Text>
 
         <TouchableOpacity style={styles.snapBtn} onPress={onSnap} activeOpacity={0.85}>
@@ -217,7 +237,7 @@ function BeforeResultSheet({
   );
 }
 
-// ── After Result Screen ──────────────────────────────────────────────────────
+// == After Result Screen ======================================================
 function AfterResultScreen({
     points, onReset, onLeaderboard,
 }: {
@@ -256,7 +276,7 @@ function AfterResultScreen({
         </View>
       </View>
 
-      {/* White floating card — NOT full width, rounded top, side margins */}
+      {/* White floating card*/}
       <View style={styles.pointsCardWrapper}>
         <View style={styles.pointsCard}>
           <Text style={styles.youEarned}>You earned</Text>
@@ -267,7 +287,7 @@ function AfterResultScreen({
 
           <TouchableOpacity
             style={styles.leaderboardBtn}
-            onPress={onLeaderboard}   // ← was router.push(...)
+            onPress={onLeaderboard}
             activeOpacity={0.85}
           >
             <Text style={styles.leaderboardBtnText}>View Leaderboard</Text>
@@ -282,7 +302,7 @@ function AfterResultScreen({
   );
 }
 
-// ── Styles ───────────────────────────────────────────────────────────────────
+// == Styles ===================================================================
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
   camera: { flex: 1 },
@@ -324,14 +344,14 @@ const styles = StyleSheet.create({
   },
   permissionBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 
-  // Before result — overlay + floating card
+  //Before result overlay + floating card
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.55)',
   },
   floatingCard: {
     position: 'absolute',
-    // Vertically centered-ish, sits in lower portion of screen
+    //Vertically centered-ish, sits in lower portion of screen
     bottom: 60,
     left: 24,
     right: 24,
@@ -364,7 +384,7 @@ const styles = StyleSheet.create({
   },
   itemConf: { fontSize: 11, color: Colors.primary, fontWeight: '600' },
   moreItems: { fontSize: 13, color: Colors.textMuted, fontStyle: 'italic' },
-  // Green color, centered
+  //Green color, centered
   sheetCta: {
     fontSize: 28, fontWeight: '900', color: Colors.primary,
     textAlign: 'center', lineHeight: 34, marginBottom: 20,
@@ -380,7 +400,7 @@ const styles = StyleSheet.create({
   },
   discardBtnText: { fontSize: 15, fontWeight: '600', color: Colors.text },
 
-  // After result
+  //After result
   afterContainer: { flex: 1, backgroundColor: '#F5F5F0' },
 
   afterGreenTop: {
@@ -389,16 +409,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingTop: 45,
     paddingBottom: 60,
-    // Rounded bottom corners
+    //rounded bottom corners
     borderBottomLeftRadius: 60,
     borderBottomRightRadius: 60,
-    // Drop shadow onto the background below
+    //drop shadow onto the background below
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.18,
     shadowRadius: 20,
     elevation: 16,
-    // Ensure shadow isn't clipped
     zIndex: 1,
   },
   trophyImage: { width: 150, height: 150, marginBottom: 14 },
@@ -407,7 +426,6 @@ const styles = StyleSheet.create({
   litterYellow: { color: Colors.accent },
   cleanedLabel: { fontSize: 25, color: 'rgba(255,255,255,0.8)', marginBottom: 4 },
 
-  // Big number inline with small "items"
   cleanedRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
@@ -416,7 +434,7 @@ const styles = StyleSheet.create({
   cleanedCount: { fontSize: 70, fontWeight: '900', color: '#fff', lineHeight: 70 },
   cleanedWord: { fontSize: 28, color: 'rgba(255,255,255,0.85)', fontWeight: '500' },
 
-  // White card — floating with side margins, very rounded top
+  //white card
   pointsCardWrapper: {
     flex: 1,
     paddingHorizontal: 24,
