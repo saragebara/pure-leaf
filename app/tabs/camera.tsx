@@ -1,15 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
-  Modal, ScrollView, SafeAreaView, Alert, Animated, Dimensions,
+  SafeAreaView, Alert, Animated, Dimensions, Image,
 } from 'react-native';
-import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
-import * as FileSystem from 'expo-file-system';
-import { Colors, Spacing, BorderRadius } from '../../constants/theme';
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import { router } from 'expo-router';
+import { Colors, BorderRadius } from '../../constants/theme';
 import { detectLitter, LitterResult } from '../../lib/gemini';
 import { calculatePoints } from '../../lib/points';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+const TROPHY_IMG = require('../../assets/images/app-logo.png');
+const STAR_IMG   = require('../../assets/images/points.png');
 
 type FlowStep = 'before_camera' | 'before_result' | 'after_camera' | 'after_result';
 
@@ -18,16 +21,15 @@ export default function CameraScreen() {
   const [step, setStep] = useState<FlowStep>('before_camera');
   const [loading, setLoading] = useState(false);
   const [beforeResult, setBeforeResult] = useState<LitterResult | null>(null);
-  const [afterResult, setAfterResult] = useState<LitterResult | null>(null);
+  const [afterResult, setAfterResult]   = useState<LitterResult | null>(null);
   const cameraRef = useRef<CameraView>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    // Pulse animation for shutter button
     Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.06, duration: 900, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1.07, duration: 850, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1,    duration: 850, useNativeDriver: true }),
       ])
     ).start();
   }, []);
@@ -39,7 +41,9 @@ export default function CameraScreen() {
       <SafeAreaView style={styles.permissionContainer}>
         <Text style={styles.permissionEmoji}>📷</Text>
         <Text style={styles.permissionTitle}>Camera Access Needed</Text>
-        <Text style={styles.permissionSubtitle}>LitterLens needs your camera to detect and count litter.</Text>
+        <Text style={styles.permissionSubtitle}>
+          PureLeaf needs your camera to detect and count litter.
+        </Text>
         <TouchableOpacity style={styles.permissionBtn} onPress={requestPermission}>
           <Text style={styles.permissionBtnText}>Grant Permission</Text>
         </TouchableOpacity>
@@ -74,33 +78,27 @@ export default function CameraScreen() {
     setAfterResult(null);
   }
 
-  const isBefore = step === 'before_camera' || step === 'before_result';
-  const detectedCount = isBefore ? (beforeResult?.count ?? 0) : (afterResult?.count ?? 0);
-
   const points = beforeResult && afterResult
     ? calculatePoints(beforeResult.count, afterResult.count)
     : null;
 
   return (
     <View style={styles.container}>
-      {/* Camera viewfinder */}
+      {/* ── Camera view ── */}
       {(step === 'before_camera' || step === 'after_camera') && (
         <>
-          <CameraView ref={cameraRef} style={styles.camera} facing="back">
-            {/* Detection overlay label */}
-            <View style={styles.cameraTopBar}>
-              <Text style={styles.cameraTopLabel}>
-                {step === 'before_camera' ? '🔍 Point at litter area' : '✅ Same spot — after cleaning'}
-              </Text>
-            </View>
-          </CameraView>
+          <CameraView ref={cameraRef} style={styles.camera} facing="back" />
 
-          {/* Bottom bar */}
+          {/* Semi-transparent green bottom bar overlaid on camera */}
           <View style={styles.bottomBar}>
             <View style={styles.detectionBadge}>
               <Text style={styles.sparkle}>✦</Text>
               <Text style={styles.detectionText}>
-                {loading ? 'Analyzing...' : step === 'before_camera' ? 'Tap to scan' : 'Tap to verify'}
+                {loading
+                  ? 'Analyzing...'
+                  : step === 'before_camera'
+                  ? '0 items detected'
+                  : 'Tap to verify'}
               </Text>
               <Text style={styles.sparkle}>✦</Text>
             </View>
@@ -110,7 +108,7 @@ export default function CameraScreen() {
                 style={[styles.shutter, loading && styles.shutterDisabled]}
                 onPress={takePicture}
                 disabled={loading}
-                activeOpacity={0.8}
+                activeOpacity={0.85}
               >
                 {loading
                   ? <ActivityIndicator color={Colors.primary} size="large" />
@@ -122,7 +120,7 @@ export default function CameraScreen() {
         </>
       )}
 
-      {/* Before result modal */}
+      {/* ── Before result sheet ── */}
       {step === 'before_result' && beforeResult && (
         <BeforeResultSheet
           result={beforeResult}
@@ -131,11 +129,9 @@ export default function CameraScreen() {
         />
       )}
 
-      {/* After result / points screen */}
+      {/* ── After result screen ── */}
       {step === 'after_result' && afterResult && beforeResult && points && (
         <AfterResultScreen
-          beforeCount={beforeResult.count}
-          afterCount={afterResult.count}
           points={points}
           onReset={resetFlow}
         />
@@ -144,29 +140,36 @@ export default function CameraScreen() {
   );
 }
 
-// ── Before Result Sheet ─────────────────────────────────────────────────────
+// ── Before Result Sheet ──────────────────────────────────────────────────────
 function BeforeResultSheet({
   result, onSnap, onDiscard,
 }: { result: LitterResult; onSnap: () => void; onDiscard: () => void }) {
-  const slideAnim = useRef(new Animated.Value(300)).current;
+  const slideAnim = useRef(new Animated.Value(400)).current;
   useEffect(() => {
-    Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 60, friction: 10 }).start();
+    Animated.spring(slideAnim, {
+      toValue: 0, useNativeDriver: true, tension: 55, friction: 11,
+    }).start();
   }, []);
 
   return (
     <View style={styles.container}>
-      {/* Blurred green background (simplified) */}
+      {/* Blurred camera bg — green tint */}
       <View style={styles.beforeBg} />
+
       <Animated.View style={[styles.sheet, { transform: [{ translateY: slideAnim }] }]}>
+        {/* Count + subtitle */}
         <Text style={styles.sheetCount}>{result.count} Items{'\n'}Detected!</Text>
         <Text style={styles.sheetSubtitle}>Get Cleaning!</Text>
 
+        {/* Item list */}
         <View style={styles.itemsList}>
           {result.items.slice(0, 5).map((item, i) => (
             <View key={i} style={styles.itemRow}>
               <Text style={styles.itemDot}>•</Text>
               <Text style={styles.itemLabel}>{item.label}</Text>
-              <Text style={styles.itemConf}>{item.confidence}</Text>
+              <View style={styles.itemConfBadge}>
+                <Text style={styles.itemConf}>{item.confidence}</Text>
+              </View>
             </View>
           ))}
           {result.items.length > 5 && (
@@ -174,6 +177,7 @@ function BeforeResultSheet({
           )}
         </View>
 
+        {/* CTA */}
         <Text style={styles.sheetCta}>Ready to{'\n'}Show Your Work?</Text>
 
         <TouchableOpacity style={styles.snapBtn} onPress={onSnap} activeOpacity={0.85}>
@@ -187,59 +191,59 @@ function BeforeResultSheet({
   );
 }
 
-// ── After Result / Points Screen ────────────────────────────────────────────
+// ── After Result Screen ──────────────────────────────────────────────────────
 function AfterResultScreen({
-  beforeCount, afterCount, points, onReset,
+  points, onReset,
 }: {
-  beforeCount: number;
-  afterCount: number;
   points: ReturnType<typeof calculatePoints>;
   onReset: () => void;
 }) {
-  const scaleAnim = useRef(new Animated.Value(0.5)).current;
+  const scaleAnim   = useRef(new Animated.Value(0.4)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.parallel([
-      Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, tension: 50, friction: 8 }),
-      Animated.timing(opacityAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
+      Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, tension: 45, friction: 8 }),
+      Animated.timing(opacityAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
     ]).start();
   }, []);
 
   return (
     <View style={styles.afterContainer}>
+      {/* Green top section */}
       <View style={styles.afterGreenTop}>
-        <Animated.Text style={[styles.trophyEmoji, { transform: [{ scale: scaleAnim }], opacity: opacityAnim }]}>
+        {/* Trophy — swap emoji for image when ready */}
+        <Image source={TROPHY_IMG} style={styles.trophyImage} resizeMode="contain" />
+        {/* <Animated.Text
+          style={[styles.trophyEmoji, { transform: [{ scale: scaleAnim }], opacity: opacityAnim }]}
+        >
           🏆
-        </Animated.Text>
+        </Animated.Text> */}
+
         <Text style={styles.greatJob}>Great Job!</Text>
         <Text style={styles.litterally}>
           You <Text style={styles.litterYellow}>litter</Text>ally rule
         </Text>
         <Text style={styles.cleanedLabel}>You cleaned up</Text>
-        <Text style={styles.cleanedCount}>{points.itemsCleaned} items</Text>
-        {points.bonusLabel && (
-          <View style={styles.bonusBadge}>
-            <Text style={styles.bonusBadgeText}>⚡ {points.bonusLabel}</Text>
-          </View>
-        )}
+        <Text style={styles.cleanedCount}>{points.itemsCleaned}</Text>
+        <Text style={styles.cleanedWord}>items</Text>
       </View>
 
+      {/* White bottom card*/}
       <View style={styles.pointsCard}>
         <Text style={styles.youEarned}>You earned</Text>
+
         <View style={styles.pointsRow}>
-          <Text style={styles.starEmoji}>⭐</Text>
+          {/* Swap for image: */}
+          <Image source={STAR_IMG} style={styles.starImage} />
+          {/* <Text style={styles.starEmoji}>⭐</Text> */}
           <Text style={styles.pointsNumber}>{points.points} points</Text>
         </View>
-        {points.bonus > 0 && (
-          <Text style={styles.bonusBreakdown}>
-            ({points.itemsCleaned} items × 10 + {points.bonus} bonus)
-          </Text>
-        )}
 
-        <TouchableOpacity style={styles.leaderboardBtn} activeOpacity={0.85}>
+        <TouchableOpacity style={styles.leaderboardBtn} onPress={() => router.push('/tabs/leaderboard')} activeOpacity={0.85}>
           <Text style={styles.leaderboardBtnText}>View Leaderboard</Text>
         </TouchableOpacity>
+
         <TouchableOpacity style={styles.homeBtn} onPress={onReset} activeOpacity={0.85}>
           <Text style={styles.homeBtnText}>Back to Home</Text>
         </TouchableOpacity>
@@ -248,162 +252,142 @@ function AfterResultScreen({
   );
 }
 
+// ── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
   camera: { flex: 1 },
 
-  cameraTopBar: {
-    position: 'absolute',
-    top: 60,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-  cameraTopLabel: {
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    color: '#fff',
-    fontSize: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    overflow: 'hidden',
-    fontWeight: '600',
-  },
-
+  // Semi-transparent bottom bar sitting over the camera
   bottomBar: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: Colors.primary,
-    paddingTop: 16,
-    paddingBottom: 90,
+    backgroundColor: 'rgba(34, 100, 34, 0.82)', // semi-transparent green
+    paddingTop: 18,
+    paddingBottom: 96,
     alignItems: 'center',
     gap: 16,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
   },
-  detectionBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
+  detectionBadge: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   sparkle: { color: Colors.accent, fontSize: 16 },
-  detectionText: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  detectionText: { color: '#fff', fontSize: 20, fontWeight: '800' },
+
   shutter: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 74,
+    height: 74,
+    borderRadius: 37,
     backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 4,
+    borderWidth: 5,
     borderColor: 'rgba(255,255,255,0.5)',
   },
   shutterDisabled: { opacity: 0.6 },
   shutterInner: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 58, height: 58, borderRadius: 29,
     backgroundColor: '#fff',
     borderWidth: 2,
-    borderColor: Colors.border,
+    borderColor: 'rgba(0,0,0,0.08)',
   },
 
-  // Permission screen
+  // Permission
   permissionContainer: {
     flex: 1, backgroundColor: Colors.offWhite,
     alignItems: 'center', justifyContent: 'center', padding: 32,
   },
   permissionEmoji: { fontSize: 64, marginBottom: 16 },
   permissionTitle: { fontSize: 24, fontWeight: '700', color: Colors.text, marginBottom: 8 },
-  permissionSubtitle: { fontSize: 16, color: Colors.textSecondary, textAlign: 'center', marginBottom: 32, lineHeight: 24 },
+  permissionSubtitle: {
+    fontSize: 16, color: Colors.textSecondary,
+    textAlign: 'center', marginBottom: 32, lineHeight: 24,
+  },
   permissionBtn: {
-    backgroundColor: Colors.primary, paddingHorizontal: 32, paddingVertical: 16,
-    borderRadius: BorderRadius.full,
+    backgroundColor: Colors.primary, paddingHorizontal: 32,
+    paddingVertical: 16, borderRadius: BorderRadius.full,
   },
   permissionBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 
-  // Before result sheet
+  // Before result
   beforeBg: { ...StyleSheet.absoluteFillObject, backgroundColor: Colors.primary },
   sheet: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     backgroundColor: '#fff',
-    borderTopLeftRadius: 32, borderTopRightRadius: 32,
-    padding: 32,
-    paddingBottom: 48,
-    shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.15, shadowRadius: 20,
-    elevation: 20,
+    borderTopLeftRadius: 36, borderTopRightRadius: 36,
+    paddingHorizontal: 28, paddingTop: 32, paddingBottom: 52,
   },
   sheetCount: {
-    fontSize: 36, fontWeight: '900', color: Colors.primary,
-    marginBottom: 4, lineHeight: 42,
+    fontSize: 38, fontWeight: '900', color: Colors.primary,
+    lineHeight: 44, marginBottom: 4,
   },
-  sheetSubtitle: { fontSize: 16, color: Colors.textSecondary, marginBottom: 16 },
-  itemsList: { marginBottom: 20, gap: 6 },
-  itemRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  itemDot: { color: Colors.primary, fontSize: 16, width: 16 },
-  itemLabel: { fontSize: 15, color: Colors.text, flex: 1, textTransform: 'capitalize' },
-  itemConf: {
-    fontSize: 11, color: Colors.textMuted,
+  sheetSubtitle: { fontSize: 16, color: Colors.textSecondary, marginBottom: 18 },
+  itemsList: { marginBottom: 22, gap: 8 },
+  itemRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  itemDot: { color: Colors.primary, fontSize: 18, width: 16 },
+  itemLabel: { flex: 1, fontSize: 15, color: Colors.text, textTransform: 'capitalize' },
+  itemConfBadge: {
     backgroundColor: Colors.primaryPale,
-    paddingHorizontal: 8, paddingVertical: 2,
-    borderRadius: 10, overflow: 'hidden',
+    borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3,
   },
+  itemConf: { fontSize: 11, color: Colors.primary, fontWeight: '600' },
   moreItems: { fontSize: 13, color: Colors.textMuted, fontStyle: 'italic' },
   sheetCta: {
-    fontSize: 30, fontWeight: '900', color: Colors.text,
-    marginBottom: 24, lineHeight: 36,
+    fontSize: 32, fontWeight: '900', color: Colors.text,
+    lineHeight: 38, marginBottom: 24,
   },
   snapBtn: {
-    backgroundColor: Colors.accent, borderRadius: BorderRadius.full,
-    paddingVertical: 16, alignItems: 'center', marginBottom: 12,
+    backgroundColor: Colors.accent, borderRadius: 999,
+    paddingVertical: 17, alignItems: 'center', marginBottom: 12,
   },
-  snapBtnText: { fontSize: 16, fontWeight: '700', color: Colors.text },
+  snapBtnText: { fontSize: 16, fontWeight: '800', color: '#1a1a1a' },
   discardBtn: {
-    borderWidth: 1.5, borderColor: Colors.border,
-    borderRadius: BorderRadius.full, paddingVertical: 16, alignItems: 'center',
+    borderWidth: 1.5, borderColor: '#ccc',
+    borderRadius: 999, paddingVertical: 15, alignItems: 'center',
   },
-  discardBtnText: { fontSize: 16, fontWeight: '600', color: Colors.text },
+  discardBtnText: { fontSize: 15, fontWeight: '600', color: Colors.text },
 
   // After result
-  afterContainer: { flex: 1 },
+  afterContainer: { flex: 1, backgroundColor: Colors.primary },
   afterGreenTop: {
-    flex: 1, backgroundColor: Colors.primary,
-    alignItems: 'center', justifyContent: 'center',
-    paddingTop: 60, paddingBottom: 48,
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 40,
   },
-  trophyEmoji: { fontSize: 72, marginBottom: 16 },
-  greatJob: { fontSize: 28, fontWeight: '900', color: '#fff', marginBottom: 4 },
-  litterally: { fontSize: 22, fontWeight: '700', color: '#fff', marginBottom: 8 },
+  trophyEmoji: { fontSize: 80, marginBottom: 12 },
+  trophyImage: { width: 90, height: 90, marginBottom: 12 }, // for when you swap to image
+  greatJob: { fontSize: 26, fontWeight: '900', color: '#fff', marginBottom: 2 },
+  litterally: { fontSize: 22, fontWeight: '700', color: '#fff', marginBottom: 12 },
   litterYellow: { color: Colors.accent },
-  cleanedLabel: { fontSize: 16, color: 'rgba(255,255,255,0.75)', marginBottom: 4 },
-  cleanedCount: { fontSize: 40, fontWeight: '900', color: '#fff', marginBottom: 8 },
-  bonusBadge: {
-    backgroundColor: Colors.accent, borderRadius: BorderRadius.full,
-    paddingHorizontal: 16, paddingVertical: 6,
-  },
-  bonusBadgeText: { fontSize: 14, fontWeight: '700', color: Colors.text },
+  cleanedLabel: { fontSize: 16, color: 'rgba(255,255,255,0.8)', marginBottom: 0 },
+  cleanedCount: { fontSize: 52, fontWeight: '900', color: '#fff', lineHeight: 58 },
+  cleanedWord: { fontSize: 18, color: 'rgba(255,255,255,0.85)', marginBottom: 8 },
 
   pointsCard: {
     backgroundColor: '#fff',
-    borderTopLeftRadius: 32, borderTopRightRadius: 32,
-    padding: 32, alignItems: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.1, shadowRadius: 16,
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
+    paddingHorizontal: 28,
+    paddingTop: 32,
+    paddingBottom: 48,
+    alignItems: 'center',
+    gap: 14,
   },
-  youEarned: { fontSize: 16, color: Colors.textSecondary, marginBottom: 8 },
+  youEarned: { fontSize: 15, color: Colors.textSecondary },
   pointsRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
-  starEmoji: { fontSize: 32 },
-  pointsNumber: { fontSize: 40, fontWeight: '900', color: Colors.text },
-  bonusBreakdown: { fontSize: 13, color: Colors.textMuted, marginBottom: 20 },
+  starEmoji: { fontSize: 34 },
+  starImage: { width: 34, height: 34 }, // for when you swap to image
+  pointsNumber: { fontSize: 42, fontWeight: '900', color: Colors.text },
   leaderboardBtn: {
-    backgroundColor: Colors.primary, borderRadius: BorderRadius.full,
-    paddingVertical: 14, paddingHorizontal: 40,
-    alignItems: 'center', marginBottom: 12, width: '100%',
+    backgroundColor: Colors.primary, borderRadius: 999,
+    paddingVertical: 15, alignItems: 'center', width: '100%',
   },
   leaderboardBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   homeBtn: {
-    borderWidth: 1.5, borderColor: Colors.border,
-    borderRadius: BorderRadius.full, paddingVertical: 14, paddingHorizontal: 40,
-    alignItems: 'center', width: '100%',
+    borderWidth: 1.5, borderColor: '#ccc',
+    borderRadius: 999, paddingVertical: 14, alignItems: 'center', width: '100%',
   },
-  homeBtnText: { fontSize: 16, fontWeight: '600', color: Colors.text },
+  homeBtnText: { fontSize: 15, fontWeight: '600', color: Colors.text },
 });

@@ -20,13 +20,13 @@ export default function RootLayout() {
       }}
     >
       <Tabs.Screen
-        name="(tabs)/profile"
+        name="tabs/profile"
         options={{
           tabBarIcon: ({ focused }) => <TabIcon emoji="🌿" label="Profile" focused={focused} />,
         }}
       />
       <Tabs.Screen
-        name="(tabs)/camera"
+        name="tabs/camera"
         options={{
           tabBarIcon: ({ focused }) => (
             <View style={[styles.cameraTab, focused && styles.cameraTabFocused]}>
@@ -36,7 +36,7 @@ export default function RootLayout() {
         }}
       />
       <Tabs.Screen
-        name="(tabs)/leaderboard"
+        name="tabs/leaderboard"
         options={{
           tabBarIcon: ({ focused }) => <TabIcon emoji="🏆" label="Leaderboard" focused={focused} />,
         }}
@@ -48,11 +48,16 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   tabBar: {
     backgroundColor: Colors.white,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    height: 80,
-    paddingBottom: 16,
-    paddingTop: 8,
+    borderTopWidth: 0,
+    height: 90,
+    paddingBottom: 20,
+    paddingTop: 10,
+
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 20,
   },
   tabIcon: {
     alignItems: 'center',
