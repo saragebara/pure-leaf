@@ -1,3 +1,6 @@
+## 🏆 ClubHacks Winner - Best Use of Gemini (GDG Partner Prize)
+See the DevPost here: https://devpost.com/software/pureleaf
+
 ## Demo
 https://www.youtube.com/watch?v=Es1p-tzcCZs
 
